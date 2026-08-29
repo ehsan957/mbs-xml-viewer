@@ -26,6 +26,27 @@ def strip_ns(tag):
     return tag
 
 
+# Item numbers whose Description/Category/Group mentions residential aged care
+# facilities, aged care attendances, or aged-care-specific services (RMMR,
+# multidisciplinary case conferences at a facility, etc.). Curated from a scan
+# of the July 2026 MBS XML file. Re-run find_aged_care_items.py against a newer
+# file if items are added/renumbered and you want to refresh this list.
+AGED_CARE_ITEM_NUMS = {
+    "4", "24", "37", "47", "58", "59", "60", "65", "124", "165", "181", "187",
+    "191", "206", "228", "232", "235", "236", "237", "238", "239", "240",
+    "249", "294", "303", "374", "375", "377", "378", "380", "381", "390",
+    "391", "715", "731", "735", "739", "743", "747", "750", "758", "761",
+    "763", "766", "769", "772", "776", "788", "789", "903", "2198", "2200",
+    "2485", "2486", "2488", "2489", "2491", "2492", "2494", "2495", "5003",
+    "5010", "5023", "5028", "5043", "5049", "5063", "5067", "5076", "5077",
+    "5220", "5223", "5227", "5228", "5260", "5261", "5262", "5263", "5265",
+    "5267", "10931", "90001", "90002", "90020", "90035", "90043", "90051",
+    "90054", "90092", "90093", "90095", "90096", "90098", "90183", "90188",
+    "90202", "90212", "90215", "92027", "92058", "16408", "51700", "51703",
+    "57541", "73932", "73933", "73934", "73935", "10955", "10957", "10959",
+}
+
+
 # Field descriptions sourced from the official MBS Online XML field
 # dictionary: https://www.mbsonline.gov.au/internet/mbsonline/publishing.nsf/Content/FAQ-XML_Help
 # "related" lists other field names whose value depends on / governs this one,
@@ -273,6 +294,14 @@ class MBSViewer(tk.Tk):
         search_entry = ttk.Entry(top_frame, textvariable=self.search_var)
         search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=6)
 
+        self.aged_care_only_var = tk.BooleanVar(value=False)
+        aged_care_check = ttk.Checkbutton(
+            top_frame, text="Aged care items only",
+            variable=self.aged_care_only_var,
+            command=self.apply_filter,
+        )
+        aged_care_check.pack(side=tk.LEFT, padx=(0, 6))
+
         self.status_var = tk.StringVar(value="No file loaded")
         ttk.Label(top_frame, textvariable=self.status_var).pack(side=tk.RIGHT)
 
@@ -348,6 +377,7 @@ class MBSViewer(tk.Tk):
 
     def apply_filter(self):
         query = self.search_var.get().strip().lower()
+        aged_care_only = self.aged_care_only_var.get()
         self.item_list.delete(0, tk.END)
         self.filtered_indices = []
 
@@ -358,9 +388,18 @@ class MBSViewer(tk.Tk):
 
             if query and query not in item_num.lower():
                 continue
+            if aged_care_only and item_num not in AGED_CARE_ITEM_NUMS:
+                continue
 
             self.filtered_indices.append(idx)
             self.item_list.insert(tk.END, label)
+
+        count = len(self.filtered_indices)
+        total = len(self.records)
+        if aged_care_only:
+            self.status_var.set(f"{count} aged care items (of {total} total)")
+        else:
+            self.status_var.set(f"{total} records loaded ({self.record_tag})" if self.records else "No file loaded")
 
     def on_select_item(self, event):
         selection = self.item_list.curselection()
